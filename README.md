@@ -56,8 +56,9 @@ Entre na pasta do projeto (`data-engineering`) e libere as permissões das pasta
 containers precisam escrever:
 
 ```
-sudo chmod -R 777 airflow/
-sudo chmod -R 777 dbt_lakehouse/
+# dar permissão para a UID exata do airflow
+sudo chown -R 50000:0 airflow/ 
+sudo chown -R 50000:0 dbt_lakehouse/
 ```
 
 Suba tudo:
