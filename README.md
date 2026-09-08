@@ -56,8 +56,9 @@ Entre na pasta do projeto (`data-engineering`) e libere as permissões das pasta
 containers precisam escrever:
 
 ```
-sudo chmod -R 777 airflow/
-sudo chmod -R 777 dbt_lakehouse/
+# dar permissão para a UID exata do airflow
+sudo chown -R 50000:0 airflow/ 
+sudo chown -R 50000:0 dbt_lakehouse/
 ```
 
 Suba tudo:
@@ -84,7 +85,7 @@ O ambiente está correto se você conseguir abrir estes endereços:
 | Serviço | URL | Usuário | Senha |
 | --- | --- | --- | --- |
 | MinIO (armazenamento) | http://localhost:9001 | `minio` | `minio123` |
-| Airflow (orquestração) | http://localhost:8080 | `admin` | `admin` |
+| Airflow (orquestração) | http://localhost:8082 | `admin` | `admin` |
 | Spark Master | http://localhost:8081 | – | – |
 | Superset (visualização) | http://localhost:8088 | `admin` | `admin` |
 
@@ -95,6 +96,7 @@ O ambiente está correto se você conseguir abrir estes endereços:
 > são os mesmos.
 >
 > Estas senhas são descartáveis e valem só para o ambiente local do curso.
+> Porta 8080 estava sendo utilizada por outra aplicação, substituída pela 8082
 
 ---
 
