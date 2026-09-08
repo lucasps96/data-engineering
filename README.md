@@ -1,361 +1,164 @@
-# Engenharia de Dados
+# Data Engineering — Lakehouse Local com Docker
 
-Projeto prático de um **lakehouse** completo rodando na sua máquina: MinIO (armazenamento),
-Spark + Delta Lake (processamento), Hive metastore (catálogo), Airflow (orquestração),
-DBT (transformação) e Superset (visualização).
+Projeto de arquitetura de dados desenvolvido como parte da minha pós-graduação em Data Science (UTFPR), baseado no material e no passo a passo do professor da disciplina. Este repositório é um fork adaptado para rodar em um ambiente próprio (servidor doméstico), com ajustes de configuração, segurança e documentação dos problemas reais enfrentados durante a implantação.
 
-Este README é o **guia de execução**: siga de cima para baixo e você terá o lakehouse
-funcionando na sua máquina.
+> Baseado no projeto original do professor da disciplina. As modificações aqui presentes incluem ajustes de portas, permissões, segurança de credenciais e documentação de troubleshooting para rodar em um ambiente com outros serviços já em uso.
 
-> **Prefere não instalar nada na sua máquina?** Dá para rodar tudo no navegador, pelo
-> GitHub Codespaces: faça o fork (seção 2) e siga a **seção 4** no lugar da 3.
+## Motivação
 
----
+A escolha de rodar este projeto em um servidor doméstico (homelab), em vez de apenas seguir o passo a passo em um ambiente isolado, foi intencional: a ideia é usar esse ambiente controlado para praticar problemas reais de infraestrutura — conflito de portas, permissões de arquivo entre host e container, gerenciamento seguro de credenciais — antes de aplicar esse mesmo tipo de arquitetura em um ambiente de produção real (ex: servidor de uma empresa).
 
-## 1. Pré-requisitos
+Rodar em um servidor que já hospeda outros serviços simula justamente o tipo de cenário que um tutorial em ambiente limpo não expõe: recursos concorrentes, portas já ocupadas, e a necessidade de isolar e documentar cada decisão de configuração. A seção de Troubleshooting abaixo é o resultado direto dessa prática.
 
-Instale na sua máquina:
+**Status atual:** acompanhando o passo a passo da disciplina — atualmente no **passo 6**, mantendo o fork sincronizado com os ajustes necessários para meu ambiente.
 
-* [Git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-* [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-* [VSCode](https://code.visualstudio.com/)
+## Arquitetura
 
-A instalação depende do seu sistema operacional. Preparei guias para
-[Windows](./_support/windows.md), [macOS](./_support/macos.md) e [Ubuntu](./_support/ubuntu.md).
+A stack simula um ambiente de **lakehouse** local, orquestrando as seguintes camadas:
 
-Você também precisa de uma conta no [GitHub](https://github.com/).
+| Componente | Função |
+|---|---|
+| **Airflow** | Orquestração de pipelines (DAGs de ingestão e transformação) |
+| **Spark** (master + workers + thrift server) | Processamento distribuído dos dados |
+| **Minio** | Object storage compatível com S3 (camadas bronze/silver/gold do data lake) |
+| **dbt** | Transformações e modelagem analítica sobre os dados |
+| **Superset** | Visualização e exploração dos dados processados |
+| **Postgres** | Metastore do Airflow |
 
-> **Está no Linux?** Pode usar o Docker Engine em vez do Docker Desktop — é mais leve e
-> funciona igual. Só garanta que instalou o plugin do Compose v2 (`docker compose`, com
-> espaço, não `docker-compose` com hífen).
+*(Inserir aqui um diagrama simples do fluxo de dados: ingestão → Minio → Spark/dbt → Superset)*
 
----
+## Como rodar
 
-## 2. Clonar o projeto
-
-Acesse https://github.com/weslleymoura/data-engineering e crie um **fork**. Isso cria uma
-cópia do projeto na sua conta do GitHub.
-
-<img src="_support/git-fork.png" width="400">
-
-Abra o terminal, vá até a pasta onde quer salvar o projeto e clone **o seu fork**:
-
-```
-git clone <<url-do-seu-repositorio>>
+**1. Clonar o repositório:**
+```bash
+git clone https://github.com/lucasps96/data-engineering.git
+cd data-engineering
 ```
 
-A URL está na página do seu fork, no botão verde de código (use a opção HTTPS):
+**2. Criar o arquivo `.env`** na raiz do projeto (não incluído no repositório por segurança — veja a seção de Configuração de credenciais abaixo).
 
-<img src="_support/git-clone.png" width="400">
+**3. Subir a stack:**
+```bash
+docker-compose up -d
+```
 
----
+Serviços disponíveis após subir:
 
-## 3. Subir os serviços
+| Serviço | URL local |
+|---|---|
+| Airflow | http://localhost:8082 |
+| Spark Master UI | http://localhost:8081 |
+| Superset | http://localhost:8088 |
+| Minio Console | http://localhost:9001 |
+| DBT Docs | http://localhost:8091 |
 
-Entre na pasta do projeto (`data-engineering`) e libere as permissões das pastas que os
-containers precisam escrever:
+> As portas podem variar em relação ao projeto original — veja a seção de Troubleshooting para entender por quê.
+
+## Configuração de credenciais (.env)
+
+Todas as credenciais e chaves sensíveis (secret keys, senhas de banco, usuários admin) foram movidas para variáveis de ambiente, fora do controle de versão. Crie um arquivo `.env` na raiz do projeto com o seguinte modelo:
 
 ```
-# dar permissão para a UID exata do airflow
-sudo chown -R 50000:0 airflow/ 
+# Airflow - webserver
+AIRFLOW_SECRET_KEY=<gerar com: python3 -c "import secrets; print(secrets.token_hex(16))">
+AIRFLOW_FERNET_KEY=<gerar com: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+
+# Airflow - banco de metadados
+AIRFLOW_DB_USER=<seu usuário>
+AIRFLOW_DB_PASSWORD=<sua senha>
+AIRFLOW_DB_NAME=<nome do banco>
+
+# Airflow - usuário admin da UI
+AIRFLOW_ADMIN_USER=<usuário admin>
+AIRFLOW_ADMIN_PASSWORD=<senha admin>
+AIRFLOW_ADMIN_EMAIL=<seu email>
+
+# Minio
+MINIO_ROOT_USER=<usuário root do Minio>
+MINIO_ROOT_PASSWORD=<senha root do Minio>
+
+# Superset
+SUPERSET_SECRET_KEY=<gerar uma chave própria>
+SUPERSET_ADMIN_USER=<usuário admin>
+SUPERSET_ADMIN_PASSWORD=<senha admin>
+SUPERSET_ADMIN_EMAIL=<seu email>
+```
+
+O `.env` está no `.gitignore` e nunca deve ser commitado. Para validar se as variáveis foram carregadas corretamente antes de subir os containers:
+```bash
+docker-compose config
+```
+
+## Troubleshooting
+
+Ao rodar este projeto em um servidor que já hospeda outros serviços (torrent client, media server, etc.), encontrei os seguintes problemas — documentados aqui para referência futura e para quem for recriar o setup em ambientes não "limpos".
+
+### 1. Conflito de porta 8080 (serviço já rodando no host)
+
+**Sintoma:** `Error starting userland proxy: listen tcp4 0.0.0.0:8080: bind: address already in use`
+
+**Causa:** outro serviço no host (no meu caso, um cliente de torrent — qbittorrent-nox) já ocupava a porta 8080.
+
+**Diagnóstico:**
+```bash
+sudo ss -tlnp | grep 8080
+```
+
+**Solução:** remapear a porta do Airflow no `docker-compose.yml` (host:container), mantendo a porta interna do container:
+```yaml
+ports:
+  - "8082:8080"
+```
+
+### 2. Porta já alocada por container anterior
+
+**Sintoma:** `Bind for 0.0.0.0:8081 failed: port is already allocated`
+
+**Causa:** containers antigos do Airflow ficaram parados em estado `Created` (nunca chegaram a rodar) ainda segurando a porta, além de colisão com a porta padrão da UI do Spark Master (também usa 8080/8081 internamente).
+
+**Diagnóstico:**
+```bash
+docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+```
+
+**Solução:** remover containers travados e escolher portas de host distintas para cada serviço:
+```bash
+docker rm -f <container_travado>
+```
+
+### 3. Permissão negada nos logs do Airflow
+
+**Sintoma:**
+```
+PermissionError: [Errno 13] Permission denied: '/opt/airflow/logs/scheduler'
+```
+O container ficava em loop de retry (`ERROR! Maximum number of retries (20) reached`) e nunca chegava a subir o webserver, mesmo aparecendo como `Up` no `docker ps` — um sintoma enganoso, já que por fora parecia estar funcionando.
+
+**Causa:** diretórios montados do host (`airflow/`, `dbt_lakehouse/`) com dono/permissões incompatíveis com o usuário usado dentro do container (UID 50000, padrão da imagem oficial do Airflow).
+
+**Solução:**
+```bash
+sudo chown -R 50000:0 airflow/
 sudo chown -R 50000:0 dbt_lakehouse/
+docker-compose up -d --force-recreate airflow
 ```
 
-Suba tudo:
+### 4. Erro de CSRF ao logar no Airflow ("The CSRF session token is missing")
 
+**Causa:** ausência de uma `AIRFLOW__WEBSERVER__SECRET_KEY` fixa. Sem essa variável, o Airflow gera uma chave aleatória a cada boot do container, invalidando sessões/cookies sempre que o container é recriado — o que acontecia com frequência durante os ajustes de porta e permissão.
+
+**Solução:** definir uma chave fixa (ver seção de Configuração de credenciais):
+```bash
+python3 -c "import secrets; print(secrets.token_hex(16))"
 ```
-docker compose up -d --build
-```
+Após configurar, recriar o container e limpar cookies do navegador antes de logar novamente.
 
-> A primeira execução baixa vários GB de imagens e constrói três delas — leve de 15 a 30
-> minutos, dependendo da sua internet. Dê pelo menos **8 GB de RAM** ao Docker Desktop
-> (Settings → Resources), senão o Spark e o Superset morrem ao iniciar.
+### 5. Credenciais expostas no docker-compose.yml
 
-Acompanhe o progresso com:
+**Problema:** o compose original trazia secrets (chave do webserver, fernet key, senhas de banco, credenciais do Minio e do Superset) diretamente hardcoded no YAML — o que fica exposto no histórico do Git em um repositório público.
 
-```
-docker compose ps
-docker compose logs -f airflow
-```
+**Solução:** todas as credenciais foram migradas para variáveis de ambiente via `.env` (fora do controle de versão), referenciadas no compose com a sintaxe `${VARIAVEL}`. Detalhes na seção de Configuração de credenciais acima.
 
-### Conferindo se deu certo
+## Créditos
 
-O ambiente está correto se você conseguir abrir estes endereços:
-
-| Serviço | URL | Usuário | Senha |
-| --- | --- | --- | --- |
-| MinIO (armazenamento) | http://localhost:9001 | `minio` | `minio123` |
-| Airflow (orquestração) | http://localhost:8082 | `admin` | `admin` |
-| Spark Master | http://localhost:8081 | – | – |
-| Superset (visualização) | http://localhost:8088 | `admin` | `admin` |
-
-> A porta **9001** é o painel do MinIO. A **9000** é a API — se abrir essa no navegador,
-> você vê um XML ou um erro, não a tela de login.
->
-> No **Codespaces**, os endereços são outros: abra pela aba **PORTS**. Os usuários e senhas
-> são os mesmos.
->
-> Estas senhas são descartáveis e valem só para o ambiente local do curso.
-> Porta 8080 estava sendo utilizada por outra aplicação, substituída pela 8082
-
----
-
-## 4. Alternativa: rodar no GitHub Codespaces
-
-Em vez de instalar Docker na sua máquina, você pode rodar tudo no navegador. O projeto é
-o mesmo — os comandos das próximas seções funcionam igual lá dentro.
-
-Antes de começar: você precisa ter feito o **fork** (seção 2). O Codespaces tem que ser
-criado a partir do **seu** fork, senão você não consegue salvar seu trabalho.
-
-### Passo 1 — Preparar o ambiente (opcional)
-
-No **seu fork**: **Settings** → **Codespaces** → **Set up prebuild** → branch `main` →
-**Create**.
-
-O prebuild deixa parte do ambiente pronta com antecedência, então o Codespaces abre mais
-rápido. É opcional: sem ele tudo funciona igual, só leva alguns minutos a mais na criação.
-Ele também consome um pouco da sua cota, então pule se estiver economizando.
-
-### Passo 2 — Criar o Codespaces
-
-No seu fork: botão verde **Code** → aba **Codespaces** → **Create codespace on main**.
-
-O ambiente leva alguns minutos para montar. Quando o editor abrir, você está pronto.
-
-### Passo 3 — Subir os serviços
-
-No terminal do Codespaces, rode os três comandos **na ordem**:
-
-```
-docker compose build
-docker builder prune -af
-docker compose up -d
-```
-
-De 15 a 30 minutos na primeira vez — ele constrói as imagens ali dentro.
-
-> O comando do meio não é opcional. O disco do Codespaces é de 32 GB, e o cache
-> gerado durante o build ocupa quase 9 GB que não servem para mais nada depois que
-> as imagens ficam prontas. Sem apagá-lo, o disco enche no meio do pipeline.
-
-Confira se subiu:
-
-```
-docker compose ps
-```
-
-Os 9 containers devem aparecer. Você **não** precisa rodar o `chmod` da seção 3: ele já
-roda sozinho na criação do ambiente.
-
-### Passo 4 — Abrir os serviços
-
-Use a aba **PORTS**, na barra inferior ao lado do TERMINAL. Passe o mouse na porta que
-quer abrir e clique no ícone de globo.
-
-| Porta | Serviço |
-| --- | --- |
-| 8080 | Airflow |
-| 8081 | Spark Master |
-| 8088 | Superset |
-| 9001 | MinIO |
-| 8091 | DBT Docs |
-
-Usuários e senhas são os mesmos da tabela da seção 3. **Não use `localhost`** no
-navegador: no Codespaces cada porta tem uma URL própria, gerada pelo GitHub.
-
-### Passo 5 — Seguir o guia
-
-Agora siga a **seção 5** normalmente. Todos os comandos funcionam igual.
-
-### Passo 6 — Encerrar quando terminar de estudar
-
-Isso importa: o Codespaces é gratuito **até um limite mensal**, e o limite se esgota mesmo
-quando você não está usando.
-
-São dois consumos separados:
-
-| O que conta | Cota gratuita | Quanto dura na nossa máquina |
-| --- | --- | --- |
-| Tempo ligado | 120 core-hours/mês | ~15 horas de uso |
-| Ambiente existindo | 15 GB-month | ~7 dias, mesmo parado |
-
-Repare na segunda linha: **o armazenamento conta enquanto o ambiente existir**, ligado ou
-não. Parar não é suficiente.
-
-**Ao terminar uma sessão de estudo**, pare o ambiente — assim ele para de consumir tempo,
-mas o seu trabalho continua lá para a próxima vez:
-
-* Menu **☰** (canto superior esquerdo) → **Stop Current Codespace**
-
-**Ao terminar de vez** (fim de um módulo, ou se for ficar dias sem usar), apague — é a
-única forma de parar o consumo de armazenamento:
-
-1. Faça `git push` de qualquer trabalho que queira guardar, porque apagar remove tudo
-2. Acesse [github.com/codespaces](https://github.com/codespaces)
-3. No menu **`...`** do ambiente → **Delete**
-
-Criar de novo depois é rápido, e você não perde nada que já tenha enviado para o seu fork.
-
-> Se a cota acabar, o Codespaces simplesmente para de abrir até o mês virar — não gera
-> cobrança nenhuma. Mas você fica sem ambiente, então vale apagar quando não estiver
-> usando.
-
----
-
-## 5. Montando o lakehouse — pipeline de exemplo
-
-Neste momento os serviços estão no ar, mas **o lakehouse está vazio**. Os passos abaixo são
-os que constroem os dados, e a **ordem importa**: cada um depende do anterior.
-
-### Passo 1 — Rodar o pipeline de ingestão
-
-Abra o [Airflow](http://localhost:8080), encontre a DAG `lakehouse_pipeline`, **despause**
-no botão da esquerda e clique no ▶ para executar.
-
-As duas tasks devem ficar verdes:
-
-* `bronze_to_silver` lê o CSV da camada bronze e grava como Delta na silver
-* `silver_to_gold` agrega por cliente e grava o resultado na gold
-
-Você pode acompanhar no [Spark Master](http://localhost:8081) e ver os arquivos aparecerem
-no [MinIO](http://localhost:9001).
-
-### Passo 2 — Registrar a tabela no catálogo
-
-```
-docker exec -it spark-master beeline -u jdbc:hive2://spark-thrift-server:10000 -e "CREATE TABLE IF NOT EXISTS default.order_summary USING DELTA LOCATION 's3a://gold/warehouse/default/order_summary';"
-```
-
-Deve responder `No rows selected`.
-
-**Por que este passo existe?** O pipeline grava usando a própria sessão Spark, que tem um
-catálogo separado. O Superset e o DBT conversam com outro catálogo — o do Thrift server. Este
-comando registra a tabela lá.
-
-> Você só faz isso **uma vez**. O catálogo fica guardado num volume e sobrevive a
-> `docker compose down`, restart e reinício da máquina. Só é apagado com
-> `docker compose down --volumes`, que apaga os dados junto.
-
-> ⚠️ A ordem importa. Se rodar este passo **antes** do passo 1, você registra uma tabela
-> apontando para um lugar vazio: o comando passa sem erro e só quebra depois, na primeira
-> consulta.
-
-### Passo 3 — Rodar o projeto DBT
-
-De volta ao Airflow, despause e execute a DAG `dbt_run_lakehouse_project`.
-
-### Passo 4 — Conferir
-
-```
-docker exec -it spark-master beeline -u jdbc:hive2://spark-thrift-server:10000 -e "SELECT SUM(total_amount) FROM marts.fct_summary;"
-```
-
-Se voltar um número, a corrente inteira funciona: MinIO → Spark → Delta → catálogo → DBT.
-
----
-
-## 6. Mantendo seu fork atualizado
-
-Seu fork é uma **fotografia** tirada no momento em que você clicou em Fork. Ele não
-acompanha o repositório original sozinho, e o seu `git pull` busca do **seu** fork — então
-correções publicadas aqui não chegam até você automaticamente.
-
-Faça isso sempre que algo não funcionar como descrito no guia, e uma vez antes de começar
-cada nova parte do curso.
-
-O jeito fácil é o botão **Sync fork**, na página do seu fork no GitHub. Ele aparece logo
-acima da lista de arquivos sempre que sua cópia está atrasada.
-
-Depois, na sua máquina:
-
-```
-git pull
-docker compose up -d --build
-```
-
-<details>
-<summary>Alternativa pela linha de comando (e o que fazer em caso de conflito)</summary>
-
-A primeira linha você roda só uma vez, para sempre:
-
-```
-git remote add upstream https://github.com/weslleymoura/data-engineering.git
-git fetch upstream
-git merge upstream/main
-git push origin main
-```
-
-Se o `git merge` acusar conflito, é porque você alterou as mesmas linhas que foram
-corrigidas. Para ficar com a sua versão: `git checkout --ours <arquivo>`. Para ficar com a
-correção: `git checkout --theirs <arquivo>`. Depois `git add` no arquivo e `git commit`.
-
-Algumas correções mudam **como** os arquivos são baixados, e não o conteúdo deles. Nesses
-casos é preciso recarregar os arquivos. Commite ou guarde seu trabalho antes, porque o
-`reset --hard` descarta alterações não commitadas:
-
-```
-git rm --cached -r .
-git reset --hard
-```
-
-</details>
-
----
-
-## 7. Comandos úteis
-
-**Conectar o Superset ao lakehouse** — use esta string de conexão:
-
-```
-hive://spark-thrift-server:10000/default
-```
-
-Depois de conectado, você pode consultar as tabelas do DBT:
-
-```
-SELECT SUM(total_amount) AS total_amount FROM marts.fct_summary
-```
-
-**Ver a documentação e a linhagem do DBT** — as DAGs de DBT já geram a documentação. Para
-servir na porta 8091:
-
-```
-docker exec -d airflow bash -c "cd /home/airflow/dbt_lakehouse/target && exec python3 -m http.server 8091"
-```
-
-Acesse http://localhost:8091 e clique no ícone azul no canto inferior direito para ver o
-grafo de linhagem.
-
-**Explorar o catálogo:**
-
-```
-docker exec -it spark-master beeline -u jdbc:hive2://spark-thrift-server:10000 -e "SHOW SCHEMAS;"
-docker exec -it spark-master beeline -u jdbc:hive2://spark-thrift-server:10000 -e "SHOW TABLES IN marts;"
-```
-
-**Explorar os arquivos no MinIO:**
-
-```
-docker exec -it mc mc ls -r local/gold/warehouse/
-```
-
-**Reconstruir um modelo específico do DBT** (e tudo que depende dele):
-
-```
-docker exec -it airflow bash -c "cd /home/airflow/dbt_lakehouse && dbt build --select fct_summary"
-```
-
-**Desligar os serviços:**
-
-```
-docker compose down
-```
-
-Isso **preserva** tudo — o lakehouse volta exatamente como você deixou, catálogo incluído.
-
-Para zerar de verdade e recomeçar do passo 1:
-
-```
-docker compose down --volumes --remove-orphans
-```
+Projeto original e passo a passo: professor da disciplina de Arquitetura de Dados (pós-graduação em Data Science, UTFPR). Adaptações, troubleshooting e documentação: Lucas.
