@@ -7,8 +7,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minio
-      MINIO_ROOT_PASSWORD: minio123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -30,7 +30,7 @@ services:
     entrypoint: >
       /bin/sh -c "
       sleep 5;
-      mc alias set local http://minio:9000 minio minio123;
+      mc alias set local http://minio:9000 ${MINIO_ROOT_USER} ${MINIO_ROOT_PASSWORD};
       mc mb -p local/bronze;
       mc mb -p local/silver;
       mc mb -p local/gold;
@@ -47,9 +47,9 @@ services:
     image: postgres:16
     container_name: airflow-db
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${AIRFLOW_DB_USER}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME}
     volumes:
       - airflow_db_data:/var/lib/postgresql/data
     healthcheck:
@@ -71,8 +71,9 @@ services:
         condition: service_healthy
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@airflow-db:5432/airflow
-      AIRFLOW__CORE__FERNET_KEY: 'n6pKh7doDn1aAvRytD8RyrYY_nWvMEe3RCPnIoyM63E='
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-db:5432/${AIRFLOW_DB_NAME}
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+      AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_SECRET_KEY}
       AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     volumes:
@@ -86,7 +87,7 @@ services:
       - ./data:/data
       - ./spark:/opt/spark
     ports:
-      - "8080:8080"
+      - "8082:8080"
       - "8091:8091"   # DBT Docs UI
     # Literal block (|), not folded (>): a folded scalar turns the trailing "\"
     # line continuations into plain newlines, which splits each option onto its
@@ -97,9 +98,9 @@ services:
       - |
         set -e
         airflow db migrate
-        airflow users create --role Admin --username admin \
-          --email admin@example.com --firstname Admin \
-          --lastname User --password admin || true
+        airflow users create --role Admin --username ${AIRFLOW_ADMIN_USER} \
+          --email ${AIRFLOW_ADMIN_EMAIL} --firstname Admin \
+          --lastname User --password ${AIRFLOW_ADMIN_PASSWORD} || true
         airflow scheduler &
         exec airflow webserver
     restart: unless-stopped
@@ -191,12 +192,12 @@ services:
     ports:
       - "8088:8088"
     environment:
-      - SUPERSET_SECRET_KEY=mysecretkey
-      - ADMIN_USERNAME=admin
+      - SUPERSET_SECRET_KEY=${SUPERSET_SECRET_KEY}
+      - ADMIN_USERNAME=${SUPERSET_ADMIN_USER}
       - ADMIN_FIRST_NAME=Admin
       - ADMIN_LAST_NAME=User
-      - ADMIN_EMAIL=admin@example.com
-      - ADMIN_PASSWORD=admin
+      - ADMIN_EMAIL=${SUPERSET_ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${SUPERSET_ADMIN_PASSWORD}
       - DATABASE_URL=sqlite:////app/superset/superset.db
       # PATH/PYTHONPATH are not overridden here: the image already puts
       # /app/.venv/bin first on PATH, and overriding PYTHONPATH would shadow
@@ -211,11 +212,11 @@ services:
         set -e
         superset db upgrade
         superset fab create-admin \
-          --username admin \
+          --username ${SUPERSET_ADMIN_USER} \
           --firstname Admin \
           --lastname User \
-          --email admin@example.com \
-          --password admin || true
+          --email ${SUPERSET_ADMIN_EMAIL} \
+          --password ${SUPERSET_ADMIN_PASSWORD} || true
         superset init
         exec superset run -h 0.0.0.0 -p 8088
     restart: unless-stopped

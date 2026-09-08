@@ -16,6 +16,9 @@ venv/
 airflow/logs/*
 !airflow/logs/.gitkeep
 
+# Environment variables / secrets
+.env
+
 # dbt build output (see also dbt_lakehouse/.gitignore)
 dbt_lakehouse/target/
 dbt_lakehouse/dbt_packages/
