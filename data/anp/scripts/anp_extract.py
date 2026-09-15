@@ -1,17 +1,22 @@
 """
-Extração da aba MUNICIPIOS de um arquivo "resumo semanal" da ANP (bronze)
-para um Parquet limpo (silver intermediário).
+Extração de uma aba específica de um arquivo "resumo semanal" da ANP
+(bronze) para um Parquet limpo (silver intermediário).
+
+Generalizado para funcionar com qualquer uma das 5 abas do arquivo
+(MUNICIPIOS, ESTADOS, REGIOES, CAPITAIS, BRASIL) — cada aba tem seu
+próprio conjunto de colunas geográficas (ex.: REGIOES usa "REGIÃO" em
+vez de "ESTADO"/"MUNICÍPIO"), então o cabeçalho é lido dinamicamente
+a partir do próprio arquivo, em vez de assumir uma lista fixa de colunas.
 
 Este script cuida apenas da extração/reparo do Excel — não faz
-transformação de negócio (tipagem fina, normalização de texto, etc.),
-que fica a cargo da etapa seguinte, em Spark.
+transformação de negócio, que fica a cargo da etapa seguinte, em Spark.
 
 Uso (de dentro de data/anp/, via toolbox):
-    docker-run.sh scripts/anp_extract.py --arquivo dados/resumo_semanal_lpc_2024-12-01_2024-12-07.xlsx
+    docker-run.sh scripts/anp_extract.py --arquivo dados/arquivo.xlsx --aba MUNICIPIOS
 
-    # Saída padrão: parquet/<mesmo nome>.parquet
+    # Saída padrão: parquet/<aba>/<mesmo nome>.parquet
     # Para especificar destino:
-    docker-run.sh scripts/anp_extract.py --arquivo dados/arquivo.xlsx --saida parquet/saida.parquet
+    docker-run.sh scripts/anp_extract.py --arquivo dados/arquivo.xlsx --aba ESTADOS --saida parquet/saida.parquet
 
 Requisitos:
     pip install openpyxl pandas pyarrow --break-system-packages
@@ -30,31 +35,22 @@ import pandas as pd
 
 warnings.filterwarnings("ignore")
 
-SHEET_NAME = "MUNICIPIOS"
-HEADER_ROW_INDEX = 9  # linha 10 (0-indexed) — confirmado na inspeção manual
+# Todas as 5 abas seguem o mesmo padrão de layout: título e metadados
+# nas primeiras linhas, cabeçalho na linha 10 (índice 9). Isso foi
+# confirmado manualmente para MUNICIPIOS; assume-se o mesmo padrão para
+# as demais, dado que são geradas pelo mesmo processo de exportação —
+# a validação de cabeçalho abaixo funciona como uma checagem dessa
+# suposição (se a linha 10 não tiver texto nenhum, o erro aparece aqui).
+HEADER_ROW_INDEX = 9
 
-EXPECTED_COLUMNS = [
-    "DATA INICIAL",
-    "DATA FINAL",
-    "ESTADO",
-    "MUNICÍPIO",
-    "PRODUTO",
-    "NÚMERO DE POSTOS PESQUISADOS",
-    "UNIDADE DE MEDIDA",
-    "PREÇO MÉDIO REVENDA",
-    "DESVIO PADRÃO REVENDA",
-    "PREÇO MÍNIMO REVENDA",
-    "PREÇO MÁXIMO REVENDA",
-    "COEF DE VARIAÇÃO REVENDA",
-]
-N_COLS = len(EXPECTED_COLUMNS)
+SHEETS_DISPONIVEIS = ["MUNICIPIOS", "ESTADOS", "REGIOES", "CAPITAIS", "BRASIL"]
 
 
 def try_open_workbook(path: str):
     """
     Tenta abrir o workbook diretamente. Se falhar (arquivo com formato
-    'strict' OOXML malformado — visto em ~9 dos 194 arquivos, concentrados
-    em dez/2022-abr/2023), converte via LibreOffice headless e tenta de novo.
+    'strict' OOXML malformado), converte via LibreOffice headless e tenta
+    de novo.
 
     Retorna (workbook, usou_fallback: bool).
     """
@@ -81,9 +77,6 @@ def try_open_workbook(path: str):
                 f"LibreOffice não conseguiu converter o arquivo. "
                 f"stderr: {result.stderr[:300]}"
             )
-        # Copia pra FORA do tmpdir (que será apagado ao sair deste bloco)
-        # usando o diretório temp padrão do sistema, para podermos reabrir
-        # com openpyxl depois que o tmpdir já não existe mais.
         fd, persistent_path = tempfile.mkstemp(suffix=".xlsx")
         os.close(fd)
         with open(converted_path, "rb") as src, open(persistent_path, "wb") as dst:
@@ -96,49 +89,64 @@ def try_open_workbook(path: str):
     return wb, True
 
 
-def extract_municipios(path: str) -> pd.DataFrame:
+def extract_sheet(path: str, sheet_name: str) -> tuple[pd.DataFrame, bool]:
     """
-    Extrai a aba MUNICIPIOS de um arquivo bronze e retorna um DataFrame
-    já com o cabeçalho correto e apenas as colunas esperadas (descarta
-    colunas extras vazias, vistas em pelo menos 1 dos 194 arquivos).
+    Extrai uma aba específica de um arquivo bronze e retorna um DataFrame
+    com o cabeçalho lido dinamicamente da linha 10 (as colunas variam
+    conforme a aba — ex.: REGIOES não tem MUNICÍPIO).
     """
+    if sheet_name not in SHEETS_DISPONIVEIS:
+        raise ValueError(f"Aba '{sheet_name}' desconhecida. Opções: {SHEETS_DISPONIVEIS}")
+
     wb, used_fallback = try_open_workbook(path)
     try:
-        if SHEET_NAME not in wb.sheetnames:
+        if sheet_name not in wb.sheetnames:
             raise ValueError(
-                f"Aba '{SHEET_NAME}' não encontrada. Abas disponíveis: {wb.sheetnames}"
+                f"Aba '{sheet_name}' não encontrada em {os.path.basename(path)}. "
+                f"Abas disponíveis: {wb.sheetnames}"
             )
-        ws = wb[SHEET_NAME]
+        ws = wb[sheet_name]
 
         header_row = next(
             ws.iter_rows(min_row=HEADER_ROW_INDEX + 1, max_row=HEADER_ROW_INDEX + 1, values_only=True)
         )
-        header = [str(h).strip() if h is not None else None for h in header_row[:N_COLS]]
+        # Mantém só as colunas com nome real, descartando células vazias
+        # no final da linha (mesmo problema visto em alguns arquivos de MUNICIPIOS)
+        header = [str(h).strip() for h in header_row if h is not None]
+        n_cols = len(header)
 
-        if header != EXPECTED_COLUMNS:
+        if n_cols == 0:
             raise ValueError(
-                f"Cabeçalho inesperado em {os.path.basename(path)}.\n"
-                f"  Esperado: {EXPECTED_COLUMNS}\n"
-                f"  Encontrado: {header}"
+                f"Linha de cabeçalho vazia na aba '{sheet_name}' de {os.path.basename(path)} "
+                f"— verifique se HEADER_ROW_INDEX ainda é válido para esta aba."
             )
 
         data_rows = []
         for row in ws.iter_rows(min_row=HEADER_ROW_INDEX + 2, values_only=True):
-            # Ignora linhas totalmente vazias (comuns no final da planilha)
             if all(c is None for c in row):
                 continue
-            data_rows.append(row[:N_COLS])
+            data_rows.append(row[:n_cols])
 
-        df = pd.DataFrame(data_rows, columns=EXPECTED_COLUMNS)
+        df = pd.DataFrame(data_rows, columns=header)
         return df, used_fallback
     finally:
         wb.close()
 
 
+# Mantido por compatibilidade com scripts que já usam extract_municipios
+# diretamente (ex.: anp_validate_silver.py).
+def extract_municipios(path: str) -> tuple[pd.DataFrame, bool]:
+    return extract_sheet(path, "MUNICIPIOS")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arquivo", required=True, help="Caminho do .xlsx de entrada (bronze)")
-    parser.add_argument("--saida", default=None, help="Caminho do .parquet de saída (default: parquet/<nome>.parquet)")
+    parser.add_argument(
+        "--aba", default="MUNICIPIOS", choices=SHEETS_DISPONIVEIS,
+        help="Aba a extrair (default: MUNICIPIOS)"
+    )
+    parser.add_argument("--saida", default=None, help="Caminho do .parquet de saída (default: parquet/<aba>/<nome>.parquet)")
     args = parser.parse_args()
 
     if not os.path.exists(args.arquivo):
@@ -148,29 +156,32 @@ def main():
     if args.saida is None:
         base_name = os.path.splitext(os.path.basename(args.arquivo))[0]
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        out_dir = os.path.join(script_dir, "..", "parquet")
+        out_dir = os.path.join(script_dir, "..", "parquet", args.aba.lower())
         os.makedirs(out_dir, exist_ok=True)
         saida = os.path.join(out_dir, base_name + ".parquet")
     else:
         saida = args.saida
         os.makedirs(os.path.dirname(os.path.abspath(saida)) or ".", exist_ok=True)
 
-    print(f"Lendo: {args.arquivo}")
-    df, used_fallback = extract_municipios(args.arquivo)
+    print(f"Lendo: {args.arquivo} (aba: {args.aba})")
+    df, used_fallback = extract_sheet(args.arquivo, args.aba)
 
     if used_fallback:
         print("  (precisou de fallback via LibreOffice)")
 
-    # Rastreabilidade: guarda de qual arquivo bronze cada linha veio
     df["ARQUIVO_ORIGEM"] = os.path.basename(args.arquivo)
 
-    df.to_parquet(saida, index=False)
+    # coerce_timestamps="us": o pandas/pyarrow grava timestamp em nanossegundos
+    # por padrão, formato que o Spark (Parquet reader) não sabe ler
+    # (erro "Illegal Parquet type: INT64 (TIMESTAMP(NANOS,false))").
+    # Forçar microssegundos garante compatibilidade sem perda de precisão
+    # relevante para este dado (granularidade é de dias, não nanossegundos).
+    df.to_parquet(saida, index=False, coerce_timestamps="us", allow_truncated_timestamps=True)
 
     print(f"Linhas extraídas: {len(df)}")
     print(f"Colunas: {list(df.columns)}")
     print(f"Salvo em: {saida}")
 
-    # Mostra uma amostra pra conferência visual rápida
     print("\nAmostra (5 primeiras linhas):")
     print(df.head().to_string())
 
