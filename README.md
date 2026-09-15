@@ -2,7 +2,7 @@
 
 ## Introdução
 
-Este projeto nasce do aprofundamento do estudo sobre o material do professor **Weslley Moura**, na disciplina de Arquitetura de Dados da Especialização em Ciência de Dados da UTFPR. A partir de um fork do repositório original da disciplina, o projeto evoluiu para explorar, na prática, os conceitos de arquitetura de *lakehouse* aplicados sobre uma base de dados real, pública e desconhecida do material do curso.
+Este projeto nasce do aprofundamento do estudo sobre o material do professor **Weslley Moura**, na disciplina de Arquitetura de Dados da Especialização em Ciência de Dados da UTFPR. A partir de um fork do repositório original da disciplina, o projeto evoluiu para explorar, na prática, os conceitos de arquitetura de *lakehouse* aplicados sobre uma base de dados real, pública e desconhecida do material do curso. A matéria foi realizada no segundo semestre de 2026.
 
 O resultado é um pipeline completo, orquestrado e automatizado: da coleta semanal na fonte original até um dashboard analítico construído sobre a camada gold.
 
