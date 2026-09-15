@@ -63,7 +63,7 @@ A separação em duas DAGs é uma decisão de arquitetura: `anp_pipeline` cuida 
 ### DAG `anp_pipeline` — ingestão, extração e validação
 
 <p align="center">
-  <img src="./imagens/dag_pipeline.png" alt="DAG Pipeline" width="500">
+  <img src="./imagens/dag_pipeline.png" alt="DAG Pipeline" width="700">
 </p>
 
 
@@ -80,7 +80,7 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 ### DAG `anp_gold` — agregação e catálogo
 
 <p align="center">
-  <img src="./imagens/dag_gold.png" alt="DAG Gold" width="500">
+  <img src="./imagens/dag_gold.png" alt="DAG Gold" width="700">
 </p>
 
 | Task | Operador | Função |
@@ -91,10 +91,13 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 ## Buckets
 
 <p align="center">
-  <img src="./imagens/buckets.png" alt="Minio Buckets" width="500">
+  <img src="./imagens/buckets.png" alt="Minio Buckets" width="700">
 </p>
 
 ## Exploração de Dados (KDD)
+
+Os principais experimentos e análises exploratórias estão documentados no
+[notebook da KDD](exploracao_kdd_anp.ipynb).
 
 Antes de definir a modelagem do gold, foi conduzida uma exploração completa sobre os dados do silver — schema, qualidade, distribuição, séries temporais e comparações geográficas. Os principais achados:
 
@@ -113,7 +116,7 @@ Antes de definir a modelagem do gold, foi conduzida uma exploração completa so
 ## Dashboard
 
 <p align="center">
-  <img src="./imagens/dashboard.png" alt="Superset Dashboard" width="500">
+  <img src="./imagens/dashboard.png" alt="Superset Dashboard" width="700">
 </p>
 
 Dashboard **"Preços de Combustíveis ANP"** no Superset, com 5 gráficos interativos construídos sobre as tabelas gold:
