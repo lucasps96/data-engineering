@@ -1,7 +1,0 @@
-version: 2
-
-sources:
-  - name: lakehouse_gold
-    schema: default    # gold.default schema
-    tables:
-      - name: order_summary

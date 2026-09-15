@@ -31,3 +31,7 @@ airbyte_data/
 # Editors
 .vscode/
 .idea/
+
+# Dados brutos e derivados da ANP (regeneráveis via scrape_anp_precos.py)
+data/anp/dados/
+data/anp/parquet/

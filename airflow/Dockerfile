@@ -28,6 +28,7 @@ RUN pip install --no-cache-dir \
     pyspark==3.4.3 \
     dbt-core==1.10.9 \
     dbt-spark==1.9.3 \
-    dbt-spark[PyHive]
+    dbt-spark[PyHive] \
+    apache-airflow-providers-docker
 
 RUN pip install psycopg2-binary
