@@ -68,12 +68,11 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 
 | Task | Operador | Função |
 |---|---|---|
-| `scrape_anp_precos` | DockerOperator | Baixa os arquivos `.xlsx` novos publicados pela ANP, pulando os que já existem |
-| `upload_bronze` | DockerOperator | Envia os arquivos crus para o bucket `bronze` do Minio, sem qualquer tratamento |
-| `extract_batch` | DockerOperator | Lê os arquivos do bronze, repara os malformados, extrai as 5 abas de cada planilha e salva como `.parquet` no bucket `silver` |
-| `validate_silver` | DockerOperator | Gate de qualidade — valida schema, nulos, consistência de preços e duplicatas em todas as abas do silver. Bloqueia a pipeline se algo falhar, antes de propagar dado suspeito para o gold |
-| `trigger_anp_gold` | TriggerDagRunOperator | Dispara a DAG `anp_gold` assim que o silver é validado com sucesso |
-
+| [`scrape_anp_precos`](data/anp/scripts/scrape_anp_precos.py) | DockerOperator | Baixa os arquivos `.xlsx` novos publicados pela ANP, pulando os que já existem |
+| [`upload_bronze`](data/anp/scripts/anp_upload_bronze.py) | DockerOperator | Envia os arquivos crus para o bucket `bronze` do Minio, sem qualquer tratamento |
+| [`extract_batch`](data/anp/scripts/anp_extract_batch.py) | DockerOperator | Lê os arquivos do bronze, repara os malformados, extrai as 5 abas de cada planilha e salva como `.parquet` no bucket `silver` |
+| [`validate_silver`](data/anp/scripts/anp_validate_silver.py) | DockerOperator | Gate de qualidade — valida schema, nulos, consistência de preços e duplicatas em todas as abas do silver. Bloqueia a pipeline se algo falhar, antes de propagar dado suspeito para o gold |
+| `trigger_anp_gold` | TriggerDagRunOperator | Dispara a DAG `anp_gold` assim que o silver é validado |
 ### DAG `anp_gold` — agregação e catálogo
 
 <p align="center">
