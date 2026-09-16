@@ -139,6 +139,14 @@ def checar_schema(df: pd.DataFrame, colunas_esperadas: dict) -> list[str]:
         if coluna not in df.columns:
             continue
         tipo_real = str(df[coluna].dtype)
+
+        # Datetime: aceita qualquer precisão (ns/us/ms) — a precisão exata
+        # pode variar conforme a lib/versão que escreveu o parquet (ex.:
+        # pyarrow grava "us" para compatibilidade com o Spark, que não lê
+        # "ns"), sem que isso represente um problema de qualidade de dado.
+        if tipo_esperado.startswith("datetime64") and tipo_real.startswith("datetime64"):
+            continue
+
         if tipo_esperado not in tipo_real and tipo_real not in tipo_esperado:
             problemas.append(
                 f"Coluna '{coluna}': esperado tipo compatível com '{tipo_esperado}', encontrado '{tipo_real}'"

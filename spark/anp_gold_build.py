@@ -37,7 +37,7 @@ com o metastore do Thrift Server):
 
     docker exec -it airflow python /app/anp_gold_build.py
 """
-
+import os
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 

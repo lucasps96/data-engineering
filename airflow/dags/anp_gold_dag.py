@@ -19,7 +19,7 @@ Etapas:
 A lista de tabelas (GOLD_TABLES) é importada diretamente de
 anp_gold_build.py, não duplicada aqui.
 """
-
+import os
 import sys
 from datetime import datetime, timedelta
 
