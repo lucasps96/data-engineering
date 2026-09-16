@@ -1,10 +1,10 @@
-# Data Engineering — Lakehouse com Dados de Preços de Combustíveis (ANP)
+# Data Engineering — Lakehouse com Dados Públicos Abertos de Preços de Combustíveis no Brasil (Fonte: ANP)
 
 ## Introdução
 
-Este projeto nasce do aprofundamento do estudo sobre o material do professor **Weslley Moura**, na disciplina de Arquitetura de Dados da Especialização em Ciência de Dados da UTFPR. A partir de um fork do repositório original da disciplina, o projeto evoluiu para explorar, na prática, os conceitos de arquitetura de *lakehouse* aplicados sobre uma base de dados real, pública e desconhecida do material do curso. A matéria foi realizada no segundo semestre de 2026.
+Este projeto nasce do aprofundamento do estudo sobre o material do professor **Weslley Moura**, na disciplina de Arquitetura de Dados da Especialização em Ciência de Dados da UTFPR. A partir de um fork do repositório original da disciplina, o projeto evoluiu para explorar, na prática, os conceitos de arquitetura de *lakehouse* aplicados sobre uma base de dados real e pública. A matéria foi realizada no segundo semestre de 2026.
 
-O resultado é um pipeline completo, orquestrado e automatizado: da coleta semanal na fonte original até um dashboard analítico construído sobre a camada gold.
+O resultado é um pipeline de *lakehouse* completo, orquestrado e automatizado: da coleta semanal — através de *scraping* — na fonte original até um dashboard analítico construído sobre a camada gold.
 
 ## Estrutura de Lakehouse
 
@@ -20,13 +20,28 @@ O projeto segue a arquitetura de *lakehouse* em três camadas, armazenadas no Mi
 | silver | 970 | 18.8 MiB |
 | gold | 200 | 28.6 MiB |
 
-**Stack:** Minio (armazenamento), Spark + Delta Lake (processamento), Hive metastore (catálogo), Airflow (orquestração), Superset (visualização), além de um container auxiliar em Python para tarefas de coleta e reparo de arquivos.
+## Buckets
+
+<p align="center">
+  <img src="./imagens/buckets.png" alt="Minio Buckets" width="700">
+</p>
+
+## Stack
+
+| Camada | Ferramenta | Papel no projeto |
+|---|---|---|
+| Coleta e reparo | **Container Python auxiliar** | Scraping da fonte e reparo de arquivos `.xlsx` malformados (tarefas fora do escopo do Spark, acionadas pelo Airflow via `DockerOperator`) |
+| Armazenamento | **Minio** | Object storage compatível com S3; guarda as três camadas (bronze, silver, gold) |
+| Processamento | **Spark + Delta Lake** | Extração, agregação e materialização das tabelas Delta |
+| Catálogo | **Hive metastore** (via Spark Thrift Server) | Registro dos metadados das tabelas, tornando-as consultáveis via SQL |
+| Orquestração | **Airflow** | Agenda e coordena as duas DAGs do pipeline |
+| Visualização | **Superset** | Dashboards analíticos sobre a camada gold |
 
 ## Dataset
 
-A fonte de dados utilizada é o **Levantamento de Preços de Combustíveis**, publicado semanalmente pela ANP (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
+A fonte de dados utilizada é o [**Levantamento de Preços de Combustíveis**](https://www.gov.br/anp/pt-br/assuntos/precos-e-defesa-da-concorrencia/precos/levantamento-de-precos-de-combustiveis-ultimas-semanas-pesquisadas), publicado semanalmente pela ANP (Agência Nacional do Petróleo, Gás Natural e Biocombustíveis).
 
-- **Período coberto:** semanal, desde setembro de 2022 até o presente.
+- **Período coberto:** semanal, desde setembro de 2022 até o presente, com automatização para as próximas publicações.
 - **Volume:** 194 planilhas (uma por semana pesquisada).
 - **Estrutura de cada planilha:** 5 abas — `CAPITAIS`, `MUNICIPIOS`, `ESTADOS`, `REGIOES` e `BRASIL` — cada uma com um nível diferente de agregação geográfica, todas extraídas e mantidas no projeto.
 - **Colunas (nível MUNICIPIOS/CAPITAIS):**
@@ -60,7 +75,7 @@ A separação em duas DAGs é uma decisão de arquitetura: `anp_pipeline` cuida 
 ### DAG `anp_pipeline` — ingestão, extração e validação
 
 <p align="center">
-  <img src="./imagens/dag_pipeline.png" alt="DAG Pipeline" width="700">
+  <img src="./imagens/dag_pipeline.png" alt="DAG Pipeline" width="1000">
 </p>
 
 
@@ -76,7 +91,7 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 ### DAG `anp_gold` — agregação e catálogo
 
 <p align="center">
-  <img src="./imagens/dag_gold.png" alt="DAG Gold" width="700">
+  <img src="./imagens/dag_gold.png" alt="DAG Gold" width="1000">
 </p>
 
 | Task | Operador | Função |
@@ -84,35 +99,29 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 | [`build_gold`](spark/anp_gold_build.py) | BashOperator | Roda o job Spark que lê o silver, normaliza nomes de coluna e materializa 7 tabelas Delta no bucket `gold`: os 5 níveis geográficos, uma dimensão de produto (`dim_produto`, com volatilidade relativa) e uma tabela derivada (`fct_diferenca_capital_estado`) |
 | [`register_tables`](airflow/dags/anp_gold_dag.py) | PythonOperator | Registra cada tabela no catálogo do Thrift Server, tornando-as consultáveis pelo Superset |
 
-## Buckets
-
-<p align="center">
-  <img src="./imagens/buckets.png" alt="Minio Buckets" width="700">
-</p>
-
 ## Exploração de Dados (KDD)
 
 Os principais experimentos e análises exploratórias estão documentados no
 [notebook da KDD](exploracao_kdd_anp.ipynb).
 
-Antes de definir a modelagem do gold, foi conduzida uma exploração completa sobre os dados do silver — schema, qualidade, distribuição, séries temporais e comparações geográficas. Os principais achados:
+Antes de definir a modelagem do gold, foi conduzida uma exploração completa sobre os dados do silver: schema, qualidade, distribuição, séries temporais e comparações geográficas. Os principais achados:
 
 - **Qualidade do dado:** zero nulos, zero duplicatas e zero violação da regra mínimo ≤ médio ≤ máximo em 445 mil linhas de município. A fonte se mostrou notavelmente consistente ao longo de quatro anos.
 
-- **Unidades de medida distintas por produto:** GLP (R$/13kg) e GNV (R$/m³) não são comparáveis diretamente com os demais produtos, medidos em R$/litro — o que exige tratamento separado em qualquer visualização ou agregação.
+- **Unidades de medida distintas por produto:** GLP (R$/13kg) e GNV (R$/m³) não são comparáveis diretamente com os demais produtos, medidos em R$/litro, o que exige tratamento separado em qualquer visualização ou agregação.
 
 - **Eventos tributários visíveis na série temporal:** saltos abruptos de preço em meados de 2023 e no início de 2026 correspondem a mudanças reais de ICMS e PIS/Cofins, confirmadas por fontes externas. Esses mesmos pontos foram detectados estatisticamente via Teste de Chow e detecção automática de changepoint (`ruptures`), sem conhecimento prévio das datas — uma validação cruzada entre o que a legislação diz e o que os dados mostram sozinhos.
 
 - **Capital nem sempre é mais cara que o interior:** em estados como Maranhão, Pará e Mato Grosso do Sul, é o interior que puxa o preço médio para cima, provavelmente reflexo do custo logístico de distribuição em territórios extensos.
 
-- **Volatilidade depende da métrica escolhida:** em termos absolutos o GLP é o mais volátil, mas apenas porque opera numa escala de preço ~20x maior. Normalizando pelo coeficiente de variação, o Etanol Hidratado se revela o produto mais sensível a oscilações — coerente com sua dependência da safra de cana-de-açúcar.
+- **Volatilidade depende da métrica escolhida:** em termos absolutos o GLP é o mais volátil, mas apenas porque opera numa escala de preço ~20x maior. Normalizando pelo coeficiente de variação, o Etanol Hidratado se revela o produto mais sensível a oscilações, o que foi coerente com sua dependência da safra de cana-de-açúcar.
 
 - **Modelagem preditiva foi avaliada e descartada:** modelos de regressão testados não superaram um baseline ingênuo em nenhum horizonte de previsão. O preço de combustível no Brasil é dominado por eventos de política tributária, que não são inferíveis a partir do histórico de preços isoladamente.
 
 ## Dashboard
 
 <p align="center">
-  <img src="./imagens/dashboard.png" alt="Superset Dashboard" width="700">
+  <img src="./imagens/dashboard.png" alt="Superset Dashboard" width="1000">
 </p>
 
 Dashboard **"Preços de Combustíveis ANP"** no Superset, com 5 gráficos interativos construídos sobre as tabelas gold:
@@ -142,13 +151,13 @@ Dashboard **"Preços de Combustíveis ANP"** no Superset, com 5 gráficos intera
 
 Rodar a stack em um servidor próprio, que já hospedava outros serviços, expôs uma série de questões que um ambiente limpo de tutorial não apresenta. As principais decisões tomadas ao longo do desenvolvimento:
 
-**Container auxiliar para tarefas fora do escopo do Spark.** O Spark não lê `.xlsx` nativamente, e parte dos arquivos da ANP (cerca de 9 dos 194, concentrados entre dez/2022 e abr/2023) foi publicada em um formato OOXML malformado que bibliotecas de leitura programática não conseguem abrir — embora abram normalmente em aplicações de planilha. A solução foi manter um container Python dedicado, com LibreOffice headless disponível, responsável por scraping, reparo e extração inicial. O Airflow dispara esse container via `DockerOperator`, mantendo cada ferramenta na imagem adequada ao seu propósito.
+**Container auxiliar para tarefas fora do escopo do Spark.** O Spark não lê `.xlsx` nativamente, e parte dos arquivos da ANP (cerca de 9 dos 194, concentrados entre dez/2022 e abr/2023) foi publicada em um formato OOXML malformado que bibliotecas de leitura programática não conseguem abrir, embora abram normalmente em aplicações de planilha. A solução foi manter um container Python dedicado, com LibreOffice headless disponível, responsável por scraping, reparo e extração inicial. O Airflow dispara esse container via `DockerOperator`, mantendo cada ferramenta na imagem adequada ao seu propósito.
 
-**Gate de qualidade como etapa explícita da pipeline.** Ainda que a exploração tenha mostrado um dataset muito consistente, não há garantia de que a fonte permanecerá assim. A task `validate_silver` verifica schema, nulos, consistência de preços e duplicatas em todas as abas, e interrompe a pipeline em caso de falha — impedindo que dado suspeito chegue à camada gold e, por consequência, aos dashboards.
+**Gate de qualidade como etapa explícita da pipeline.** Ainda que a exploração tenha mostrado um dataset muito consistente, não há garantia de que a fonte permanecerá assim. A task `validate_silver` verifica schema, nulos, consistência de preços e duplicatas em todas as abas, e interrompe a pipeline em caso de falha, impedindo que dado suspeito chegue à camada gold e, por consequência, aos dashboards.
 
-**Normalização de nomes de coluna na fronteira do gold.** O Delta Lake não aceita espaços ou caracteres especiais em nomes de coluna. Em vez de habilitar o mapeamento de colunas do Delta, optou-se por normalizar os nomes (maiúsculas, sem espaço ou acento) ao materializar as tabelas — o que também torna as consultas SQL no Superset e no dbt bem mais diretas.
+**Normalização de nomes de coluna na fronteira do gold.** O Delta Lake não aceita espaços ou caracteres especiais em nomes de coluna. Em vez de habilitar o mapeamento de colunas do Delta, optou-se por normalizar os nomes (maiúsculas, sem espaço ou acento) ao materializar as tabelas, o que também torna as consultas SQL no Superset e no dbt bem mais diretas.
 
-**Registro de tabelas em duas etapas.** O job Spark que grava as tabelas e o Thrift Server que as serve utilizam catálogos Hive independentes. Os dados são gravados fisicamente no bucket gold pelo job, e cada tabela é então registrada no catálogo do Thrift Server como uma etapa separada da DAG — padrão já adotado no projeto original da disciplina, e que evita disputa de acesso ao metastore.
+**Registro de tabelas em duas etapas.** O job Spark que grava as tabelas e o Thrift Server que as serve utilizam catálogos Hive independentes. Os dados são gravados fisicamente no bucket gold pelo job, e cada tabela é então registrada no catálogo do Thrift Server como uma etapa separada da DAG, padrão já adotado no projeto original da disciplina, e que evita disputa de acesso ao metastore.
 
 **Credenciais fora do controle de versão.** Todas as chaves e senhas foram migradas do `docker-compose.yml` para variáveis de ambiente, com o arquivo correspondente excluído do repositório.
 
@@ -158,4 +167,4 @@ Rodar a stack em um servidor próprio, que já hospedava outros serviços, expô
 
 ## Créditos
 
-Stack de infraestrutura original e passo a passo: professor **Weslley Moura**, disciplina de Arquitetura de Dados (Especialização em Ciência de Dados, UTFPR). Pipeline de dados sobre a ANP, exploração, modelagem do gold, dashboards, adaptações de infraestrutura e documentação: Lucas.
+Stack de infraestrutura original e passo a passo: professor **Weslley Moura**, disciplina de Arquitetura de Dados (Especialização em Ciência de Dados, UTFPR). Pipeline de dados sobre a ANP, exploração, modelagem do gold, dashboards, adaptações de infraestrutura e documentação: Lucas Pereira de Souza. Setembro de 2026
