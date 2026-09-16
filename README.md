@@ -39,23 +39,20 @@ A fonte de dados utilizada é o **Levantamento de Preços de Combustíveis**, pu
 ```
 ANP (fonte)
     │
+    ▼  scraping
+Bronze (Minio) ......... arquivos .xlsx crus
+    │
+    ▼  extração + reparo + validação (gate de qualidade)
+Silver (Minio) ......... .parquet limpo, 5 níveis geográficos
+    │
+    ▼  agregação (Spark) + registro no catálogo
+Gold (Minio) ........... 7 tabelas Delta
+    │
     ▼
-Scraping ──► Bronze (Minio)
-                │
-                ▼
-            Extração/Reparo
-                │
-                ▼
-            Silver (Minio)
-                │
-                ▼
-            Gold (Minio)
-                │
-                ▼
-            Superset
-          (dashboards)
+Superset ............... dashboards
 
-Orquestrado pelo Airflow, em duas DAGs encadeadas
+DAG anp_pipeline: scraping → bronze → silver → validação
+        └── dispara ──► DAG anp_gold: agregação → catálogo
 ```
 
 A separação em duas DAGs é uma decisão de arquitetura: `anp_pipeline` cuida da ingestão e preparação (roda diariamente), enquanto `anp_gold` cuida da agregação analítica (computacionalmente mais pesada), disparada automaticamente apenas quando o silver passa no gate de validação.
