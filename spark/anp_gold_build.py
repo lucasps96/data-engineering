@@ -42,8 +42,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 MINIO_ENDPOINT = "http://minio:9000"
-MINIO_ACCESS_KEY = "minio"      # substituir por variável de ambiente em produção
-MINIO_SECRET_KEY = "minio123"   # substituir por variável de ambiente em produção
+MINIO_ACCESS_KEY = os.environ.get("MINIO_ROOT_USER")
+MINIO_SECRET_KEY = os.environ.get("MINIO_ROOT_PASSWORD")
 
 SILVER_BASE = "s3a://silver/anp"
 GOLD_WAREHOUSE = "s3a://gold/warehouse"

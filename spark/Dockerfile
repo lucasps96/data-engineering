@@ -71,8 +71,8 @@ ENTRYPOINT java \
  --conf spark.sql.catalogImplementation=hive \
  --conf spark.hadoop.javax.jdo.option.ConnectionURL="jdbc:derby:;databaseName=/metastore/metastore_db;create=true" \
  --conf spark.hadoop.fs.s3a.endpoint=http://minio:9000 \
- --conf spark.hadoop.fs.s3a.access.key=minio \
- --conf spark.hadoop.fs.s3a.secret.key=minio123 \
+ --conf spark.hadoop.fs.s3a.access.key=$MINIO_ROOT_USER \
+ --conf spark.hadoop.fs.s3a.secret.key=$MINIO_ROOT_PASSWORD \
  --conf spark.hadoop.fs.s3a.path.style.access=true \
  --conf spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem \
  --conf spark.sql.warehouse.dir=s3a://gold/warehouse \
