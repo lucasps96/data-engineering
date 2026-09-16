@@ -99,6 +99,20 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 | [`build_gold`](spark/anp_gold_build.py) | BashOperator | Roda o job Spark que lê o silver, normaliza nomes de coluna e materializa 7 tabelas Delta no bucket `gold`: os 5 níveis geográficos, uma dimensão de produto (`dim_produto`, com volatilidade relativa) e uma tabela derivada (`fct_diferenca_capital_estado`) |
 | [`register_tables`](airflow/dags/anp_gold_dag.py) | PythonOperator | Registra cada tabela no catálogo do Thrift Server, tornando-as consultáveis pelo Superset |
 
+## Container Auxiliar — py-toolbox
+
+As tasks de ingestão da DAG `anp_pipeline` (`scrape_anp_precos`, `upload_bronze`, `extract_batch`, `validate_silver`) rodam em um container auxiliar, o **[py-toolbox](https://github.com/lucasps96/py-toolbox)**, mantido em repositório próprio e reutilizado em outros projetos de dados.
+
+Esse container existe porque parte do trabalho de ingestão fica fora do escopo natural do Spark:
+
+- **Scraping** da página da ANP (requests + BeautifulSoup)
+- **Reparo de arquivos Excel malformados**: cerca de 9 dos 194 arquivos do dataset foram publicados em um formato OOXML que bibliotecas como `openpyxl` não conseguem abrir diretamente, embora aplicações de planilha comuns abram sem problema. O container inclui **LibreOffice headless**, usado como fallback automático de conversão.
+- **Upload e leitura no Minio** via cliente Python (`minio`)
+
+O Airflow aciona esse container a cada execução das tasks correspondentes, via `DockerOperator`, montando o volume do projeto e passando as credenciais necessárias como variáveis de ambiente, sem que a imagem em si carregue nenhum dado ou credencial fixa.
+
+
+
 ## Camada Gold — Tabelas
 
 A camada gold é composta por 7 tabelas Delta, materializadas pelo job Spark [`anp_gold_build.py`](spark/anp_gold_build.py) a partir do silver validado. Cinco delas replicam os níveis geográficos originais da ANP; as outras duas são derivadas, criadas para responder perguntas específicas levantadas durante a exploração.
