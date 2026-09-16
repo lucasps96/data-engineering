@@ -1,4 +1,4 @@
-# Data Engineering — Lakehouse com Dados Públicos Abertos de Preços de Combustíveis no Brasil (Fonte: ANP)
+# Data Engineering — Lakehouse com Dados Públicos de Preços de Combustíveis no Brasil (Fonte: ANP)
 
 ## Introdução
 
