@@ -99,6 +99,43 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 | [`build_gold`](spark/anp_gold_build.py) | BashOperator | Roda o job Spark que lê o silver, normaliza nomes de coluna e materializa 7 tabelas Delta no bucket `gold`: os 5 níveis geográficos, uma dimensão de produto (`dim_produto`, com volatilidade relativa) e uma tabela derivada (`fct_diferenca_capital_estado`) |
 | [`register_tables`](airflow/dags/anp_gold_dag.py) | PythonOperator | Registra cada tabela no catálogo do Thrift Server, tornando-as consultáveis pelo Superset |
 
+## Camada Gold — Tabelas
+
+A camada gold é composta por 7 tabelas Delta, materializadas pelo job Spark [`anp_gold_build.py`](spark/anp_gold_build.py) a partir do silver validado. Cinco delas replicam os níveis geográficos originais da ANP; as outras duas são derivadas, criadas para responder perguntas específicas levantadas durante a exploração.
+
+| Tabela | Granularidade | Descrição |
+|---|---|---|
+| `fct_precos_municipios` | Município × produto × semana | Nível mais fino disponível, base para qualquer agregação geográfica mais específica |
+| `fct_precos_capitais` | Capital × produto × semana | Subconjunto de municípios, usado para comparações entre capitais |
+| `fct_precos_estados` | Estado × produto × semana | Preço agregado por unidade federativa, já com a região correspondente |
+| `fct_precos_regioes` | Região × produto × semana | As 5 macrorregiões do país, oficial da ANP — não recalculada a partir dos municípios |
+| `fct_precos_brasil` | Produto × semana | Série nacional, usada como referência para a série temporal e para o cálculo de volatilidade |
+| `dim_produto` | Produto | Dimensão com o preço médio histórico, desvio padrão e a **volatilidade relativa** (coeficiente de variação) de cada um dos 7 produtos, calculada sobre a série nacional |
+| `fct_diferenca_capital_estado` | Estado × produto × semana | Tabela derivada: diferença entre o preço da capital e a média do estado, calculada por meio de um `join` entre `fct_precos_capitais` e `fct_precos_estados` |
+
+Todas as colunas de texto originais (com espaços e acentos, ex.: `"PREÇO MÉDIO REVENDA"`) foram normalizadas para o padrão `MAIUSCULO_COM_UNDERSCORE` (ex.: `PRECO_MEDIO_REVENDA`) no momento da materialização (exigência do Delta Lake).
+
+### `dim_produto`
+
+Criada para sustentar a análise de volatilidade da exploração. A volatilidade relativa é calculada como o coeficiente de variação do preço médio de cada produto ao longo de todo o histórico:
+
+```
+volatilidade_relativa = desvio_padrao_historico / preco_medio_historico
+```
+
+Essa normalização é o que revela o Etanol Hidratado como o produto mais volátil do dataset. Em termos absolutos, o GLP teria a maior variação, mas apenas por operar em uma escala de preço muito maior (R$/13kg contra R$/litro dos demais).
+
+### `fct_diferenca_capital_estado`
+
+Responde a uma pergunta que surgiu durante a exploração: a capital de um estado é sempre mais cara que o interior? A tabela cruza, semana a semana, o preço médio da capital com o preço médio do estado inteiro:
+
+```
+diferenca_capital_estado = preco_capital - preco_estado
+```
+
+Valores positivos indicam capital mais cara; valores negativos indicam que o interior puxa o preço médio do estado para cima.
+
+
 ## Exploração de Dados (KDD)
 
 Os principais experimentos e análises exploratórias estão documentados no
