@@ -81,8 +81,8 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 
 | Task | Operador | Função |
 |---|---|---|
-| `build_gold` | BashOperator | Roda o job Spark que lê o silver, normaliza nomes de coluna e materializa 7 tabelas Delta no bucket `gold`: os 5 níveis geográficos, uma dimensão de produto (`dim_produto`, com volatilidade relativa) e uma tabela derivada (`fct_diferenca_capital_estado`) |
-| `register_tables` | PythonOperator | Registra cada tabela no catálogo do Thrift Server, tornando-as consultáveis pelo Superset |
+| [`build_gold`](spark/anp_gold_build.py) | BashOperator | Roda o job Spark que lê o silver, normaliza nomes de coluna e materializa 7 tabelas Delta no bucket `gold`: os 5 níveis geográficos, uma dimensão de produto (`dim_produto`, com volatilidade relativa) e uma tabela derivada (`fct_diferenca_capital_estado`) |
+| [`register_tables`](airflow/dags/anp_gold_dag.py) | PythonOperator | Registra cada tabela no catálogo do Thrift Server, tornando-as consultáveis pelo Superset |
 
 ## Buckets
 
