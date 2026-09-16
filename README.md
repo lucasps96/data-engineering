@@ -103,11 +103,11 @@ Roda diariamente às 06h. A ANP publica a pesquisa da semana entre segunda e ter
 
 As tasks de ingestão da DAG `anp_pipeline` (`scrape_anp_precos`, `upload_bronze`, `extract_batch`, `validate_silver`) rodam em um container auxiliar, o **[py-toolbox](https://github.com/lucasps96/py-toolbox)**, mantido em repositório próprio e reutilizado em outros projetos de dados.
 
-Esse container existe porque parte do trabalho de ingestão fica fora do escopo natural do Spark:
+Esse container existe porque parte do trabalho de ingestão não foi possível realizar com o Spark:
 
 - **Scraping** da página da ANP (requests + BeautifulSoup)
 - **Reparo de arquivos Excel malformados**: cerca de 9 dos 194 arquivos do dataset foram publicados em um formato OOXML que bibliotecas como `openpyxl` não conseguem abrir diretamente, embora aplicações de planilha comuns abram sem problema. O container inclui **LibreOffice headless**, usado como fallback automático de conversão.
-- **Upload e leitura no Minio** via cliente Python (`minio`)
+- **Upload e leitura no Minio** feito via cliente Python (`minio`)
 
 O Airflow aciona esse container a cada execução das tasks correspondentes, via `DockerOperator`, montando o volume do projeto e passando as credenciais necessárias como variáveis de ambiente, sem que a imagem em si carregue nenhum dado ou credencial fixa.
 
