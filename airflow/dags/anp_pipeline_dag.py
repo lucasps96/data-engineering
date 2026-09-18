@@ -8,8 +8,10 @@ Etapas:
                                "bronze" do Minio (sem qualquer tratamento)
   3. extract_batch          -> lê os arquivos do bucket "bronze", repara
                                os malformados (fallback via LibreOffice),
-                               extrai a aba MUNICIPIOS de cada um e salva
-                               como .parquet no bucket "silver"
+                               extrai as 5 abas de cada planilha
+                               (MUNICIPIOS, CAPITAIS, ESTADOS, REGIOES,
+                               BRASIL) e salva como .parquet no bucket
+                               "silver"
   4. validate_silver        -> gate de qualidade: valida schema, nulos,
                                consistência de preços e duplicatas no
                                silver consolidado. Se algo falhar, a
@@ -42,12 +44,19 @@ from docker.types import Mount
 
 # Caminho ABSOLUTO no HOST (não no container do Airflow) da pasta
 # data/anp/ do projeto — necessário porque quem cria os containers
-# py-toolbox é o Docker do HOST, via socket.
-HOST_ANP_DIR = "/mnt/work/data-engineering/data/anp"
+# py-toolbox é o Docker do HOST, via socket. Injetado pelo
+# docker-compose.yml (HOST_ANP_DIR: ${PWD}/data/anp), então funciona
+# não importa em qual pasta o repositório for clonado. O valor
+# hardcoded abaixo é só um fallback para quem rodar a DAG fora do
+# compose (ex.: testes locais).
+HOST_ANP_DIR = os.environ.get("HOST_ANP_DIR", "/mnt/work/data-engineering/data/anp")
 
 # Rede do projeto (necessária para resolver o hostname "minio" — a rede
 # padrão do Docker não resolve nomes de containers de outros serviços).
-PROJECT_NETWORK = "data-engineering_data-net"
+# O nome é fixado explicitamente em docker-compose.yml (networks.data-net.name),
+# em vez de derivado do nome da pasta do projeto — por isso o valor abaixo
+# é estável mesmo que o compose seja invocado com outro nome de projeto.
+PROJECT_NETWORK = os.environ.get("PROJECT_NETWORK", "data-engineering_data-net")
 
 MINIO_ENV = {
     "MINIO_ROOT_USER": os.environ.get("MINIO_ROOT_USER"),

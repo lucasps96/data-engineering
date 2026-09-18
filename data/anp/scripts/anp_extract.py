@@ -133,12 +133,6 @@ def extract_sheet(path: str, sheet_name: str) -> tuple[pd.DataFrame, bool]:
         wb.close()
 
 
-# Mantido por compatibilidade com scripts que já usam extract_municipios
-# diretamente (ex.: anp_validate_silver.py).
-def extract_municipios(path: str) -> tuple[pd.DataFrame, bool]:
-    return extract_sheet(path, "MUNICIPIOS")
-
-
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--arquivo", required=True, help="Caminho do .xlsx de entrada (bronze)")

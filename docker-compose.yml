@@ -77,6 +77,15 @@ services:
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # ${PWD}: caminho ABSOLUTO no HOST da raiz do projeto no momento do
+      # `docker compose up`. anp_pipeline_dag.py usa isso para montar
+      # data/anp/ nos containers py-toolbox via docker.sock do host — e
+      # como todos os volumes deste arquivo já usam caminhos relativos
+      # (./airflow/dags, ./data, ...), rodar o compose de fora da raiz do
+      # projeto já quebraria tudo mesmo antes dessa variável existir.
+      HOST_ANP_DIR: ${PWD}/data/anp
+      # Precisa bater com networks.data-net.name, mais abaixo neste arquivo.
+      PROJECT_NETWORK: data-engineering_data-net
     volumes:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
@@ -229,4 +238,9 @@ volumes:
 
 networks:
   data-net:
+    # Nome fixo (em vez de deixar o Compose derivar de
+    # "${nome-da-pasta}_data-net"): garante que anp_pipeline_dag.py
+    # (PROJECT_NETWORK) sempre acerte o nome da rede, mesmo que o
+    # repositório seja clonado em uma pasta com outro nome.
+    name: data-engineering_data-net
     driver: bridge

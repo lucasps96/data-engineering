@@ -5,7 +5,9 @@ Extrai da página de "últimas semanas pesquisadas" todos os links de
 "Preços médios semanais" (.xlsx) e baixa os arquivos ainda não presentes
 localmente.
 
-Pasta de destino: /home/vudu/server/work/data-engineering/data/anp/
+Pasta de destino: <raiz do projeto>/data/anp/dados/ (calculada em
+DEST_DIR, relativa a este script — funciona tanto rodando direto no
+host quanto dentro do container py-toolbox).
 
 Uso:
     python scrape_anp_precos.py

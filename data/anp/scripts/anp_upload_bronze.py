@@ -6,12 +6,13 @@ Os arquivos são enviados exatamente como estão — sem nenhum tratamento —
 respeitando o princípio de bronze (cópia fiel da fonte).
 
 Variáveis de ambiente esperadas (mesmas já usadas no restante do
-projeto, via .env):
-    MINIO_ENDPOINT       (default: "minio:9000")
+projeto, via .env — mesmos nomes usados por anp_extract_batch.py para o
+lado de leitura do bronze):
+    MINIO_ENDPOINT        (default: "minio:9000")
     MINIO_ROOT_USER
     MINIO_ROOT_PASSWORD
-    MINIO_BUCKET         (default: "bronze")
-    MINIO_PREFIX         (default: "anp/resumo_semanal/")
+    MINIO_BRONZE_BUCKET   (default: "bronze")
+    MINIO_BRONZE_PREFIX   (default: "anp/resumo_semanal/")
 
 Uso (de dentro de data/anp/, via toolbox, com acesso à rede do projeto):
     docker run --rm -it \\
@@ -37,8 +38,8 @@ DADOS_DIR = os.path.join(SCRIPT_DIR, "..", "dados")
 MINIO_ENDPOINT = os.environ.get("MINIO_ENDPOINT", "minio:9000")
 MINIO_ACCESS_KEY = os.environ.get("MINIO_ROOT_USER")
 MINIO_SECRET_KEY = os.environ.get("MINIO_ROOT_PASSWORD")
-MINIO_BUCKET = os.environ.get("MINIO_BUCKET", "bronze")
-MINIO_PREFIX = os.environ.get("MINIO_PREFIX", "anp/resumo_semanal/")
+MINIO_BUCKET = os.environ.get("MINIO_BRONZE_BUCKET", "bronze")
+MINIO_PREFIX = os.environ.get("MINIO_BRONZE_PREFIX", "anp/resumo_semanal/")
 
 
 def get_client() -> Minio:
