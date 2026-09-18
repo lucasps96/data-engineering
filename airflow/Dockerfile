@@ -3,10 +3,9 @@ FROM apache/airflow:2.9.1
 # Install Java
 USER root
 
-# Add APT sources and install Java (git is needed by `dbt deps`)
+# Add APT sources and install Java
 RUN apt-get update && apt-get install -y \
     openjdk-17-jdk \
-    git \
     && apt-get clean
 
 # Set JAVA_HOME for PySpark. Resolve it from the installed java binary instead of
@@ -17,18 +16,11 @@ RUN ln -sfn "$(dirname "$(dirname "$(readlink -f "$(command -v java)")")")" /usr
 ENV JAVA_HOME=/usr/lib/jvm/current
 ENV PATH="$JAVA_HOME/bin:$PATH"
 
-# Install Trino CLI
-RUN curl -L https://repo1.maven.org/maven2/io/trino/trino-cli/440/trino-cli-440-executable.jar -o /usr/local/bin/trino && \
-    chmod +x /usr/local/bin/trino
-
 USER airflow
 
-# Install Python dependencies: PySpark, DBT
+# Install Python dependencies: PySpark, Docker provider (para o DockerOperator)
 RUN pip install --no-cache-dir \
     pyspark==3.4.3 \
-    dbt-core==1.10.9 \
-    dbt-spark==1.9.3 \
-    dbt-spark[PyHive] \
     apache-airflow-providers-docker
 
 RUN pip install psycopg2-binary

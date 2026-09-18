@@ -81,16 +81,12 @@ services:
       - ./airflow/dags:/opt/airflow/dags
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
-      - ./airflow/init:/opt/airflow/init
       - ./spark:/app
-      - ./dbt_lakehouse:/home/airflow/dbt_lakehouse
-      - ./dbt_lakehouse/profiles.yml:/home/airflow/.dbt/profiles.yml
       - ./data:/data
       - ./spark:/opt/spark
       - /var/run/docker.sock:/var/run/docker.sock
     ports:
       - "8082:8080"
-      - "8091:8091"   # DBT Docs UI
     # Literal block (|), not folded (>): a folded scalar turns the trailing "\"
     # line continuations into plain newlines, which splits each option onto its
     # own line and breaks the command.
@@ -124,7 +120,6 @@ services:
     volumes:
       - ./spark:/app
       - ./data:/data
-      - ./scripts:/scripts
     restart: unless-stopped
     networks:
       - data-net

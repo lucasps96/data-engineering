@@ -19,11 +19,6 @@ airflow/logs/*
 # Environment variables / secrets
 .env
 
-# dbt build output (see also dbt_lakehouse/.gitignore)
-dbt_lakehouse/target/
-dbt_lakehouse/dbt_packages/
-dbt_lakehouse/logs/
-
 # Local service data
 logs/*
 airbyte_data/

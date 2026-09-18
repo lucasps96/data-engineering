@@ -3,7 +3,7 @@
   "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
 
   // Precisa ser docker-in-docker: o compose usa caminhos relativos
-  // (./airflow/dags, ./dbt_lakehouse), que o docker-outside-of-docker
+  // (./airflow/dags, ./spark), que o docker-outside-of-docker
   // resolveria no host e apontariam para o lugar errado.
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {}
@@ -35,13 +35,12 @@
   },
 
   // No Codespaces o acesso é pela aba PORTS, não por localhost.
-  "forwardPorts": [8080, 8081, 8088, 9001, 8091],
+  "forwardPorts": [8082, 8081, 8088, 9001],
   "portsAttributes": {
-    "8080": { "label": "Airflow" },
+    "8082": { "label": "Airflow" },
     "8081": { "label": "Spark Master" },
     "8088": { "label": "Superset" },
-    "9001": { "label": "MinIO" },
-    "8091": { "label": "DBT Docs" }
+    "9001": { "label": "MinIO" }
   },
 
   // Não adianta construir as imagens do compose aqui para o prebuild aproveitar:
@@ -52,7 +51,7 @@
   // `docker compose up -d --build`, que roda uma vez na máquina do aluno.
 
   // Mesmo chmod do passo 3 do README, automatizado.
-  "postCreateCommand": "sudo chmod -R 777 airflow dbt_lakehouse",
+  "postCreateCommand": "sudo chmod -R 777 airflow",
 
   "customizations": {
     "vscode": {

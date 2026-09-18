@@ -72,7 +72,7 @@ def normalizar_nomes_colunas(df):
     Renomeia colunas para o padrão MAIUSCULO_COM_UNDERSCORE, sem espaços
     nem acentos — obrigatório para o Delta Lake (que não aceita espaços
     ou caracteres especiais em nomes de coluna sem habilitar Column
-    Mapping) e mais prático de referenciar depois em SQL/dbt/Superset.
+    Mapping) e mais prático de referenciar depois em SQL/Superset.
     """
     for coluna in df.columns:
         novo_nome = coluna.strip().upper().translate(_ACENTOS).replace(" ", "_")

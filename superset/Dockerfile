@@ -21,8 +21,6 @@ RUN /app/.venv/bin/python3 -m pip install --no-cache-dir \
     sasl==0.3.1 \
     pyhive
 
-RUN /app/.venv/bin/python3 -m pip install --no-cache-dir "trino[sqlalchemy]"
-
 USER superset
 
 

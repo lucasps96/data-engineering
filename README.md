@@ -206,7 +206,7 @@ Rodar a stack em um servidor próprio, que já hospedava outros serviços, expô
 
 **Gate de qualidade como etapa explícita da pipeline.** Ainda que a exploração tenha mostrado um dataset muito consistente, não há garantia de que a fonte permanecerá assim. A task `validate_silver` verifica schema, nulos, consistência de preços e duplicatas em todas as abas, e interrompe a pipeline em caso de falha, impedindo que dado suspeito chegue à camada gold e, por consequência, aos dashboards.
 
-**Normalização de nomes de coluna na fronteira do gold.** O Delta Lake não aceita espaços ou caracteres especiais em nomes de coluna. Em vez de habilitar o mapeamento de colunas do Delta, optou-se por normalizar os nomes (maiúsculas, sem espaço ou acento) ao materializar as tabelas, o que também torna as consultas SQL no Superset e no dbt bem mais diretas.
+**Normalização de nomes de coluna na fronteira do gold.** O Delta Lake não aceita espaços ou caracteres especiais em nomes de coluna. Em vez de habilitar o mapeamento de colunas do Delta, optou-se por normalizar os nomes (maiúsculas, sem espaço ou acento) ao materializar as tabelas, o que também torna as consultas SQL no Superset bem mais diretas.
 
 **Registro de tabelas em duas etapas.** O job Spark que grava as tabelas e o Thrift Server que as serve utilizam catálogos Hive independentes. Os dados são gravados fisicamente no bucket gold pelo job, e cada tabela é então registrada no catálogo do Thrift Server como uma etapa separada da DAG, padrão já adotado no projeto original da disciplina, e que evita disputa de acesso ao metastore.
 
