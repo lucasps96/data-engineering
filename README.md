@@ -218,4 +218,4 @@ Rodar a stack em um servidor próprio, que já hospedava outros serviços, expô
 
 ## Créditos
 
-Stack de infraestrutura original e passo a passo: professor **Weslley Moura**, disciplina de Arquitetura de Dados (Especialização em Ciência de Dados, UTFPR). Pipeline de dados sobre a ANP, exploração, modelagem do gold, dashboards, adaptações de infraestrutura e documentação: Lucas Pereira de Souza. Este projeto contou com o suporte de Claude para a otimização de códigos. Setembro de 2026
+Stack de infraestrutura original e passo a passo: professor **Weslley Moura**, disciplina de Arquitetura de Dados (Especialização em Ciência de Dados, UTFPR). Pipeline de dados sobre a ANP, exploração, modelagem do gold, dashboards, adaptações de infraestrutura e documentação: Lucas Pereira de Souza. Este projeto contou com o suporte de Claude Code para a otimização de códigos. Setembro de 2026
