@@ -20,7 +20,7 @@
   //   camadas de escrita           4,1 GB
   //   cache de build               8,8 GB
   //   + base do dev container   ~= 29 GB
-  // Por isso o README manda rodar `docker builder prune -af` entre o build e o
+  // Por isso é preciso rodar `docker builder prune -af` entre o build e o
   // `up`: o cache de build não serve para mais nada depois que as imagens estão
   // prontas, e devolve os 8,8 GB que o pipeline precisa. Sem esse passo o disco
   // enche no meio de um job Spark, aparece como `No space left on device` dentro
@@ -50,7 +50,9 @@
   // adianta a imagem base, as features e o clone do repositório -- só não o
   // `docker compose up -d --build`, que roda uma vez na máquina do aluno.
 
-  // Mesmo chmod do passo 3 do README, automatizado.
+  // Airflow escreve nos volumes montados (./airflow/logs, etc.) com um UID
+  // próprio dentro do container, que gera conflito de permissão com o
+  // usuário do host/Codespaces — daí o chmod 777 automatizado aqui.
   "postCreateCommand": "sudo chmod -R 777 airflow",
 
   "customizations": {

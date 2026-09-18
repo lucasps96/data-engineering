@@ -28,9 +28,9 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.python import PythonOperator
 
-# spark/ está montado em /app dentro do container airflow (mesmo volume
-# usado pelos scripts do professor) — adicionamos ao path para importar
-# a lista de tabelas sem duplicá-la.
+# spark/ está montado em /app dentro do container airflow (ver
+# docker-compose.yml) — adicionamos ao path para importar a lista de
+# tabelas sem duplicá-la.
 sys.path.append("/app")
 from anp_gold_build import GOLD_TABLES  # noqa: E402
 

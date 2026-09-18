@@ -3,8 +3,7 @@ Silver -> Gold: lê os arquivos .parquet do silver (Minio) e materializa
 como tabelas Delta no gold (fisicamente, em s3a://gold/warehouse/...).
 
 IMPORTANTE — este script usa um metastore Hive local/isolado (o padrão
-default do Spark, sem configuração de metastore compartilhado), assim
-como bronze_to_silver.py e silver_to_gold.py do professor. Isso é
+default do Spark, sem configuração de metastore compartilhado). Isso é
 intencional: ele NÃO registra as tabelas no catálogo do Thrift Server
 diretamente (o Thrift Server usa seu próprio metastore, em
 /metastore/metastore_db — Derby não suporta múltiplas conexões
@@ -20,8 +19,8 @@ Derby):
 
     (repetir para cada uma das 7 tabelas geradas — ver lista abaixo)
 
-Esse é o mesmo padrão documentado no README original do projeto
-(seção "Passo 2 — Registrar a tabela no catálogo").
+Na DAG anp_gold, esse registro é feito automaticamente pela task
+register_tables (ver airflow/dags/anp_gold_dag.py).
 
 Tabelas geradas:
     default.fct_precos_municipios
