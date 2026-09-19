@@ -84,6 +84,20 @@ def get_spark_session() -> SparkSession:
     return (
         SparkSession.builder.appName("anp_gold_build")
         .master("spark://spark-master:7077")
+        # Configuração explícita de memória: o host roda ~7,6GB compartilhados
+        # entre minio, postgres, airflow, spark-master/workers, thrift-server e
+        # superset (ver comentário em airflow/dags/anp_gold_dag.py). Sem isso,
+        # o driver e cada executor caem no default de 1g cada, e o job (driver
+        # rodando dentro do próprio container airflow + 2 executors) acaba
+        # pedindo memória que não sobra, deixando o heartbeat da task lento o
+        # suficiente para o scheduler marcá-la como zumbi e matá-la (é isso
+        # que produz "State of this instance has been externally set to
+        # failed" no log, sem um OOM-kill explícito). Os dados do ANP são
+        # pequenos (parquet semanal), então 1 executor de 1g é suficiente.
+        .config("spark.driver.memory", "1g")
+        .config("spark.executor.memory", "1g")
+        .config("spark.executor.cores", "1")
+        .config("spark.cores.max", "2")
         .config("spark.jars.packages", ",".join([
             "io.delta:delta-core_2.12:2.4.0",
             "org.apache.hadoop:hadoop-aws:3.3.4",

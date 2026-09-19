@@ -216,6 +216,8 @@ Rodar a stack em um servidor próprio, que já hospedava outros serviços, expô
 
 **Limitação de recursos como restrição real de projeto.** O servidor dispõe de pouco mais de 7 GB de RAM compartilhados entre todos os serviços. O job de construção do gold é a etapa mais pesada da pipeline e chegou a saturar a memória disponível em uma das execuções. As DAGs foram configuradas sem retentativas automáticas e com limite de execuções simultâneas, justamente para evitar que uma falha por pressão de memória se agrave sozinha.
 
+**Dimensionamento explícito de memória do Spark.** Sem configuração, o driver (executado dentro do container do Airflow) e cada executor assumem 1 GB por padrão, e os workers anunciavam 2 GB e 2 cores cada, mais do que o host tinha disponível. Sob pressão de memória, o heartbeat da task atrasava e o scheduler a marcava como zumbi, o que aparecia no log como "State of this instance has been externally set to failed", sem um OOM-kill explícito. Os workers passaram a anunciar 1,5 GB e 1 core, e o job do gold fixa driver e executor em 1 GB, com no máximo 2 cores no total. Como os dados da ANP são pequenos, essa capacidade é suficiente.
+
 ## Créditos
 
 Stack de infraestrutura original e passo a passo: professor **Weslley Moura**, disciplina de Arquitetura de Dados (Especialização em Ciência de Dados, UTFPR). Pipeline de dados sobre a ANP, exploração, modelagem do gold, dashboards, adaptações de infraestrutura e documentação: Lucas Pereira de Souza. Este projeto contou com o suporte de Claude Code para a otimização de códigos. Setembro de 2026

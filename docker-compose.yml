@@ -139,8 +139,11 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
+      # 1536m (não 2G): dá folga acima do spark.executor.memory=1g fixado em
+      # anp_gold_build.py (heap + overhead do executor), sem anunciar mais
+      # capacidade do que o host de ~7,6GB compartilhado realmente tem sobrando.
+      - SPARK_WORKER_MEMORY=1536m
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
     volumes:
@@ -156,8 +159,9 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=2G
-      - SPARK_WORKER_CORES=2
+      # Ver comentário em spark-worker-1 sobre o valor de SPARK_WORKER_MEMORY.
+      - SPARK_WORKER_MEMORY=1536m
+      - SPARK_WORKER_CORES=1
     depends_on:
       - spark-master
     volumes:
